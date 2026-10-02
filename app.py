@@ -49,6 +49,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+import threading
+
 # ==========================================
 # 3. ADVANCED FEATURE: LIVE TERMINAL TRACKER
 # (Beginners can ignore how this works, it just captures the AI's internal thoughts and prints them to the screen)
@@ -58,9 +61,15 @@ class StreamToExpander:
         self.status_container = status_container
         self.log_container = log_container
         self.logs = []
+        # Save the Streamlit context from the main thread
+        self.ctx = get_script_run_ctx() 
         
     def write(self, text):
         if text.strip():
+            # Attach the context to whatever background thread CrewAI is using
+            if self.ctx:
+                add_script_run_ctx(threading.current_thread(), self.ctx)
+                
             self.logs.append(text)
             self.log_container.code("".join(self.logs[-20:]), language='markdown') # Show last 20 lines
             
