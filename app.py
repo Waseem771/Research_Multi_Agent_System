@@ -381,9 +381,7 @@ st.markdown("---")
 # 7. MAIN LOGIC
 # ==========================================
 if launch:
-    if not os.environ.get("GROQ_API_KEY"):
-        st.error("⚠️ Please enter your Groq API Key above or in the sidebar before launching.")
-    elif not topic.strip():
+    if not topic.strip():
         st.warning("⚠️ Please enter a research topic first.")
     else:
         # ── Layout: activity log left | report right ──
