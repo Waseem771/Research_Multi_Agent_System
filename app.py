@@ -322,18 +322,6 @@ class StreamToExpander:
 with st.sidebar:
     st.markdown("### ⚙️ Configuration")
     st.markdown("---")
-
-    st.markdown(
-        "<div style='background:#1E293B;border:1px solid #334155;border-radius:8px;"
-        "padding:0.75rem;font-size:0.8rem;color:#94A3B8'>"
-        "🔐 <b style='color:#38BDF8'>Azure OpenAI</b><br><br>"
-        "Auth: <code>DefaultAzureCredential</code><br>"
-        "Run <code>az login</code> in terminal before starting the app."
-        "</div>",
-        unsafe_allow_html=True
-    )
-
-    st.markdown("---")
     st.markdown("**☁️ Provider:** Azure OpenAI")
     st.markdown("---")
     st.markdown("**Your AI Team**")
