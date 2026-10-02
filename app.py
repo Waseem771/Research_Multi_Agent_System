@@ -1,156 +1,456 @@
 # --- STREAMLIT CLOUD SQLITE PATCH ---
-# This fixes an issue where Streamlit Cloud's internal database version is too old for CrewAI
 try:
     __import__('pysqlite3')
     import sys
     sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 except ImportError:
-    pass # If it fails, we are probably running locally on Windows where it's not needed
+    pass
 
 import streamlit as st
 import os
+import sys
 import re
+import threading
 from coordinator import run_research_system
+from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
 
 # ==========================================
 # 1. PAGE SETUP
-# This sets up the browser tab name and icon
 # ==========================================
 st.set_page_config(
-    page_title="Research Multi-Agent System",
+    page_title="AI Research Team",
     page_icon="🔬",
-    layout="wide", # This makes the app take up the whole screen width
-    initial_sidebar_state="expanded"
+    layout="wide",
+    initial_sidebar_state="collapsed"   # sidebar collapsed by default — API key is hidden
 )
 
 # ==========================================
-# 2. CUSTOM STYLING (CSS)
-# This makes our buttons and boxes look pretty
+# 2. DESIGN SYSTEM — Swiss Modernism 2.0 / Dark
+#    Colors: #0F172A bg | #111827 card | #1E3A5F primary
+#    Typography: Inter (system-safe modern substitute for clean SaaS look)
 # ==========================================
 st.markdown("""
 <style>
-    .main {background-color: #f9f9fb;}
-    .stButton>button {
-        width: 100%;
-        border-radius: 8px;
-        background-color: #1e3a8a;
-        color: white;
-        font-weight: bold;
-    }
-    .agent-status {
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #1e3a8a;
-        padding: 10px;
-        background: #e0e7ff;
-        border-radius: 8px;
-        margin-bottom: 15px;
-    }
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── Root tokens ── */
+:root {
+    --color-background:       #0F172A;
+    --color-card:             #111827;
+    --color-card-alt:         #1E293B;
+    --color-primary:          #1E3A5F;
+    --color-secondary:        #2563EB;
+    --color-accent:           #38BDF8;
+    --color-foreground:       #F8FAFC;
+    --color-muted:            #94A3B8;
+    --color-border:           #334155;
+    --color-success:          #10B981;
+    --color-warning:          #F59E0B;
+    --color-error:            #EF4444;
+    --font-sans:              'Inter', system-ui, sans-serif;
+    --font-mono:              'JetBrains Mono', monospace;
+    --radius:                 10px;
+    --radius-sm:              6px;
+}
+
+/* ── Global base ── */
+html, body, [class*="css"] {
+    font-family: var(--font-sans) !important;
+    background-color: var(--color-background) !important;
+    color: var(--color-foreground) !important;
+}
+
+/* ── Hide Streamlit chrome ── */
+#MainMenu, footer, header { visibility: hidden; }
+.block-container { padding: 2rem 3rem 3rem; max-width: 1400px; }
+
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] {
+    background: var(--color-card) !important;
+    border-right: 1px solid var(--color-border);
+}
+section[data-testid="stSidebar"] * { color: var(--color-foreground) !important; }
+section[data-testid="stSidebar"] input {
+    background: var(--color-card-alt) !important;
+    border: 1px solid var(--color-border) !important;
+    color: var(--color-foreground) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+/* ── Hero header ── */
+.hero-header {
+    background: linear-gradient(135deg, #0F172A 0%, #1E3A5F 60%, #2563EB22 100%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 2.5rem 2rem 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+.hero-header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, #2563EB33, transparent 70%);
+    border-radius: 50%;
+}
+.hero-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--color-foreground);
+    letter-spacing: -0.03em;
+    margin: 0 0 0.4rem;
+    line-height: 1.15;
+}
+.hero-subtitle {
+    font-size: 1.0rem;
+    color: var(--color-muted);
+    margin: 0;
+    font-weight: 400;
+}
+
+/* ── Agent badge pills ── */
+.team-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.2rem;
+}
+.agent-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--color-card-alt);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-muted);
+    white-space: nowrap;
+}
+.agent-pill .dot {
+    width: 7px; height: 7px;
+    background: var(--color-accent);
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* ── Input ── */
+.stTextInput > div > div > input {
+    background: var(--color-card) !important;
+    border: 1.5px solid var(--color-border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--color-foreground) !important;
+    font-size: 1rem !important;
+    padding: 0.7rem 1rem !important;
+    transition: border-color 0.2s;
+}
+.stTextInput > div > div > input:focus {
+    border-color: var(--color-secondary) !important;
+    box-shadow: 0 0 0 3px #2563EB22 !important;
+}
+.stTextInput label { color: var(--color-muted) !important; font-size: 0.85rem !important; }
+
+/* ── Launch button ── */
+.stButton > button {
+    background: linear-gradient(135deg, #1E3A5F, #2563EB) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 1rem !important;
+    border: none !important;
+    border-radius: var(--radius) !important;
+    padding: 0.7rem 2rem !important;
+    cursor: pointer !important;
+    transition: opacity 0.2s, transform 0.15s !important;
+    letter-spacing: 0.01em;
+    width: auto !important;
+    min-width: 180px;
+}
+.stButton > button:hover {
+    opacity: 0.9 !important;
+    transform: translateY(-1px) !important;
+}
+
+/* ── Section headings ── */
+.section-heading {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-foreground);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.section-heading::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+}
+
+/* ── Activity card ── */
+.activity-card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+    min-height: 240px;
+}
+
+/* ── Status badge ── */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    margin-bottom: 0.75rem;
+}
+.status-idle    { background: #1E293B; color: var(--color-muted); border: 1px solid var(--color-border); }
+.status-running { background: #1E3A5F33; color: var(--color-accent); border: 1px solid var(--color-accent)33; }
+.status-done    { background: #10B98122; color: var(--color-success); border: 1px solid #10B98144; }
+.status-error   { background: #EF444422; color: var(--color-error);   border: 1px solid #EF444444; }
+
+/* ── Log output ── */
+.stCode, .stCodeBlock, code, pre {
+    background: #0A0F1E !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.78rem !important;
+    color: #94D4FF !important;
+}
+
+/* ── Report card ── */
+.report-card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 2rem 2.5rem;
+}
+
+/* ── Report markdown typography ── */
+.report-card h1 { font-size: 1.8rem; font-weight: 800; color: var(--color-foreground); margin-top: 0; border-bottom: 2px solid var(--color-secondary); padding-bottom: 0.5rem; }
+.report-card h2 { font-size: 1.35rem; font-weight: 700; color: var(--color-accent); margin-top: 1.8rem; }
+.report-card h3 { font-size: 1.1rem; font-weight: 600; color: var(--color-foreground); }
+.report-card p  { font-size: 1rem; line-height: 1.75; color: #CBD5E1; }
+.report-card ul, .report-card ol { color: #CBD5E1; line-height: 1.8; padding-left: 1.4rem; }
+.report-card li::marker { color: var(--color-accent); }
+.report-card strong { color: var(--color-foreground); }
+.report-card blockquote {
+    border-left: 3px solid var(--color-secondary);
+    margin: 1rem 0; padding: 0.5rem 1rem;
+    background: var(--color-card-alt);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    color: var(--color-muted);
+    font-style: italic;
+}
+
+/* ── Markdown general ── */
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: var(--color-foreground) !important; }
+.stMarkdown p, .stMarkdown li { color: #CBD5E1 !important; line-height: 1.75; }
+.stMarkdown strong { color: var(--color-foreground) !important; }
+.stMarkdown a { color: var(--color-accent) !important; }
+
+/* ── Expander (API key) ── */
+.streamlit-expanderHeader {
+    background: var(--color-card) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--color-muted) !important;
+    font-size: 0.85rem !important;
+}
+.streamlit-expanderContent {
+    background: var(--color-card-alt) !important;
+    border: 1px solid var(--color-border) !important;
+    border-top: none !important;
+}
+
+/* ── Alert/error boxes ── */
+.stAlert { border-radius: var(--radius) !important; }
+
+/* ── Columns gap ── */
+[data-testid="stHorizontalBlock"] { gap: 1.5rem; }
+
+/* ── Divider ── */
+hr { border-color: var(--color-border) !important; }
 </style>
 """, unsafe_allow_html=True)
 
-from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
-import threading
 
 # ==========================================
-# 3. ADVANCED FEATURE: LIVE TERMINAL TRACKER
-# (Beginners can ignore how this works, it just captures the AI's internal thoughts and prints them to the screen)
+# 3. LIVE LOG CAPTURE
 # ==========================================
 class StreamToExpander:
-    def __init__(self, status_container, log_container):
-        self.status_container = status_container
-        self.log_container = log_container
+    def __init__(self, status_placeholder, log_placeholder):
+        self.status_placeholder = status_placeholder
+        self.log_placeholder = log_placeholder
         self.logs = []
-        # Save the Streamlit context from the main thread
-        self.ctx = get_script_run_ctx() 
-        
+        self.ctx = get_script_run_ctx()
+
     def write(self, text):
         if text.strip():
-            # Attach the context to whatever background thread CrewAI is using
             if self.ctx:
                 add_script_run_ctx(threading.current_thread(), self.ctx)
-                
             self.logs.append(text)
-            self.log_container.code("".join(self.logs[-20:]), language='markdown') # Show last 20 lines
-            
-            # If the AI prints "Agent:", update the UI to show who is working!
+            # show last 30 lines
+            self.log_placeholder.code("".join(self.logs[-30:]), language="markdown")
             if "Agent:" in text:
-                agent_name = text.split("Agent:")[-1].strip()
-                self.status_container.markdown(f'<div class="agent-status">🤖 Currently Working: {agent_name}</div>', unsafe_allow_html=True)
+                agent_name = text.split("Agent:")[-1].strip().split("\n")[0]
+                self.status_placeholder.markdown(
+                    f'<div class="status-badge status-running">'
+                    f'<span style="width:8px;height:8px;background:#38BDF8;border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span>'
+                    f'🤖 {agent_name}</div>'
+                    f'<style>@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:0.4}}}}</style>',
+                    unsafe_allow_html=True
+                )
 
     def flush(self):
         pass
 
+
 # ==========================================
-# 4. THE SIDEBAR (Left Menu)
+# 4. SIDEBAR — API key (collapsed by default)
 # ==========================================
 with st.sidebar:
-    st.title("⚙️ Settings")
-    st.write("Please enter your API Key. This acts as a password to use the AI brain.")
-    
-    # Create a text box for the password
-    api_key = st.text_input("Groq API Key", type="password")
-    if api_key:
-        os.environ["GROQ_API_KEY"] = api_key # Save it securely behind the scenes
-    
+    st.markdown("### ⚙️ Configuration")
     st.markdown("---")
-    st.markdown("### 🧑‍🔬 Your AI Team:")
-    st.markdown(
-        "- 🕵️ **Researcher** — `gpt-oss-20b`\n"
-        "- 📚 **Lit Reviewer** — `gpt-oss-20b`\n"
-        "- 📊 **Analyst** — `gpt-oss-120b`\n"
-        "- 🔍 **Fact Checker** — `gpt-oss-safeguard-20b`\n"
-        "- 👔 **Orchestrator** — `gpt-oss-120b`"
+    api_key = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
+    if api_key:
+        os.environ["GROQ_API_KEY"] = api_key
+        st.success("✅ API Key saved")
+
+    st.markdown("---")
+    st.markdown("**Your AI Team**")
+    agents_info = [
+        ("🕵️", "Researcher",    "gpt-oss-20b",          "Web search & facts"),
+        ("📚", "Lit Reviewer",  "gpt-oss-20b",          "Academic papers"),
+        ("📊", "Analyst",       "gpt-oss-120b",         "Deep analysis"),
+        ("🔍", "Fact Checker",  "gpt-oss-safeguard-20b","Verification"),
+        ("👔", "Orchestrator",  "gpt-oss-120b",         "Final synthesis"),
+    ]
+    for icon, name, model, role in agents_info:
+        st.markdown(
+            f"**{icon} {name}**  \n"
+            f"<span style='font-size:0.75rem;color:#64748B'>`{model}`  •  {role}</span>",
+            unsafe_allow_html=True
+        )
+        st.markdown("")
+
+
+# ==========================================
+# 5. HERO HEADER
+# ==========================================
+st.markdown("""
+<div class="hero-header">
+    <div class="hero-title">🔬 AI Research Team</div>
+    <p class="hero-subtitle">
+        Powered by 5 specialized AI agents — Research · Literature Review · Analysis · Fact-Check · Synthesis
+    </p>
+    <div class="team-row">
+        <span class="agent-pill"><span class="dot"></span>🕵️ Researcher</span>
+        <span class="agent-pill"><span class="dot"></span>📚 Lit Reviewer</span>
+        <span class="agent-pill"><span class="dot"></span>📊 Analyst</span>
+        <span class="agent-pill"><span class="dot"></span>🔍 Fact Checker</span>
+        <span class="agent-pill"><span class="dot"></span>👔 Orchestrator</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
+# ==========================================
+# 6. INPUT AREA
+# ==========================================
+# API key expander (quick access without sidebar)
+with st.expander("🔑 Enter Groq API Key (if not set in sidebar)", expanded=not bool(os.environ.get("GROQ_API_KEY"))):
+    inline_key = st.text_input("API Key", type="password", key="inline_key", label_visibility="collapsed", placeholder="gsk_...")
+    if inline_key:
+        os.environ["GROQ_API_KEY"] = inline_key
+
+col_input, col_btn = st.columns([5, 1])
+with col_input:
+    topic = st.text_input(
+        "Research topic",
+        placeholder="e.g.  The future of quantum computing in drug discovery",
+        label_visibility="collapsed"
     )
+with col_btn:
+    launch = st.button("🚀 Launch", use_container_width=True)
+
+st.markdown("---")
+
 
 # ==========================================
-# 5. THE MAIN SCREEN
+# 7. MAIN LOGIC
 # ==========================================
-st.title("🔬 AI-Powered Research Team")
-st.write("Type a topic below, and our 5 AI workers will write a detailed report for you.")
-
-# Create the text box for the user's topic
-topic = st.text_input("What do you want to learn about?", placeholder="Example: The future of artificial intelligence")
-
-# Create a big button. When clicked, everything indented below it will run!
-if st.button("🚀 Launch AI Team"):
-    
-    # Check if they forgot the API key
+if launch:
     if not os.environ.get("GROQ_API_KEY"):
-        st.error("⚠️ Oops! You forgot to enter your Groq API Key in the left sidebar.")
-        
-    # Check if they forgot to type a topic
-    elif not topic:
-        st.warning("⚠️ Please type a topic first.")
-        
-    # If everything is good, start the AI!
+        st.error("⚠️ Please enter your Groq API Key above or in the sidebar before launching.")
+    elif not topic.strip():
+        st.warning("⚠️ Please enter a research topic first.")
     else:
-        # Split the screen into two columns
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            st.subheader("📡 Live AI Brain Activity")
-            status_container = st.empty() # Create an empty box to update later
-            log_container = st.empty()    # Create an empty box for the logs
-            
-            status_container.markdown('<div class="agent-status">⏳ Waking up the AI...</div>', unsafe_allow_html=True)
-            
-            # Start tracking the AI's thoughts
-            sys_stdout = sys.stdout
-            sys.stdout = StreamToExpander(status_container, log_container)
-            
-            try:
-                # 👉 THIS IS WHERE THE MAGIC HAPPENS! We call the manager from coordinator.py
-                result = run_research_system(topic)
-                
-                status_container.success("✅ Finished!")
-            except Exception as e:
-                status_container.error(f"Something went wrong: {e}")
-                result = None
-            finally:
-                sys.stdout = sys_stdout # Stop tracking thoughts
+        # ── Layout: activity log left | report right ──
+        left, right = st.columns([1, 2], gap="large")
 
-        with col2:
-            st.subheader("📑 Final Report")
-            if result:
-                st.markdown(result) # Print the final text to the screen!
+        with left:
+            st.markdown('<div class="section-heading">📡 Live Agent Activity</div>', unsafe_allow_html=True)
+            with st.container():
+                status_placeholder = st.empty()
+                status_placeholder.markdown(
+                    '<div class="status-badge status-running">'
+                    '<span style="width:8px;height:8px;background:#38BDF8;border-radius:50%;display:inline-block"></span>'
+                    '⏳ Initialising agents…</div>',
+                    unsafe_allow_html=True
+                )
+                log_placeholder = st.empty()
+
+        with right:
+            st.markdown('<div class="section-heading">📑 Final Report</div>', unsafe_allow_html=True)
+            report_placeholder = st.empty()
+            report_placeholder.markdown(
+                '<div style="color:#475569;font-size:0.95rem;padding:2rem 0">Report will appear here once the team finishes…</div>',
+                unsafe_allow_html=True
+            )
+
+        # ── Run the crew ──
+        saved_stdout = sys.stdout
+        sys.stdout = StreamToExpander(status_placeholder, log_placeholder)
+
+        result = None
+        try:
+            result = run_research_system(topic.strip())
+            status_placeholder.markdown(
+                '<div class="status-badge status-done">✅ Research complete</div>',
+                unsafe_allow_html=True
+            )
+        except Exception as e:
+            status_placeholder.markdown(
+                f'<div class="status-badge status-error">❌ Error: {e}</div>',
+                unsafe_allow_html=True
+            )
+        finally:
+            sys.stdout = saved_stdout
+
+        # ── Render report ──
+        if result:
+            report_text = str(result)
+            with right:
+                report_placeholder.empty()
+                st.markdown('<div class="report-card">', unsafe_allow_html=True)
+                st.markdown(report_text)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                # Download button
+                st.download_button(
+                    label="⬇️ Download Report (.md)",
+                    data=report_text,
+                    file_name=f"research_{topic[:40].replace(' ','_')}.md",
+                    mime="text/markdown"
+                )
