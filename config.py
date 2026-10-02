@@ -40,24 +40,25 @@ def _build_llm(model_name: str, max_tokens: int = 1024):
 
 def get_fast_llm():
     """
-    openai/gpt-oss-20b  →  Lightweight & fast.
+    llama-3.1-8b-instant  →  Lightweight & fast (real Groq model).
     Best for: Researcher & Literature Reviewer
     (quick tool-call tasks that don't need deep reasoning)
     """
-    return _build_llm("openai/gpt-oss-20b", max_tokens=800)
+    return _build_llm("llama-3.1-8b-instant", max_tokens=800)
 
 def get_power_llm():
     """
-    openai/gpt-oss-120b  →  Most powerful reasoning model.
+    llama-3.3-70b-versatile  →  Most powerful reasoning model (real Groq model).
     Best for: Analyst & Orchestrator
     (heavy synthesis / writing tasks)
     """
-    return _build_llm("openai/gpt-oss-120b", max_tokens=1024)
+    return _build_llm("llama-3.3-70b-versatile", max_tokens=1024)
 
 def get_safe_llm():
     """
-    openai/gpt-oss-safeguard-20b  →  Safety-tuned model.
+    llama-3.3-70b-versatile  →  Used for fact-checking (real Groq model).
     Best for: Fact Checker
-    (designed to spot inaccuracies and flag problematic content)
+    Note: llama-guard-3-8b is a classification model only; using versatile instead
+    for free-text fact-check output.
     """
-    return _build_llm("openai/gpt-oss-safeguard-20b", max_tokens=600)
+    return _build_llm("llama-3.3-70b-versatile", max_tokens=600)

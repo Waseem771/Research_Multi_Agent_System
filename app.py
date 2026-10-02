@@ -330,11 +330,11 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("**Your AI Team**")
     agents_info = [
-        ("🕵️", "Researcher",    "gpt-oss-20b",           "Web search & facts"),
-        ("📚", "Lit Reviewer",  "gpt-oss-20b",           "Academic papers"),
-        ("📊", "Analyst",       "gpt-oss-120b",          "Deep analysis"),
-        ("🔍", "Fact Checker",  "gpt-oss-safeguard-20b", "Verification"),
-        ("👔", "Orchestrator",  "gpt-oss-120b",          "Final synthesis"),
+        ("🕵️", "Researcher",    "llama-3.1-8b-instant",    "Web search & facts"),
+        ("📚", "Lit Reviewer",  "llama-3.1-8b-instant",    "Academic papers"),
+        ("📊", "Analyst",       "llama-3.3-70b-versatile", "Deep analysis"),
+        ("🔍", "Fact Checker",  "llama-3.3-70b-versatile", "Verification"),
+        ("👔", "Orchestrator",  "llama-3.3-70b-versatile", "Final synthesis"),
     ]
     for icon, name, model, role in agents_info:
         st.markdown(
