@@ -1,8 +1,11 @@
 # --- STREAMLIT CLOUD SQLITE PATCH ---
 # This fixes an issue where Streamlit Cloud's internal database version is too old for CrewAI
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+try:
+    __import__('pysqlite3')
+    import sys
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+except ImportError:
+    pass # If it fails, we are probably running locally on Windows where it's not needed
 
 import streamlit as st
 import os
