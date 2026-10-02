@@ -95,7 +95,13 @@ with st.sidebar:
     
     st.markdown("---")
     st.markdown("### 🧑‍🔬 Your AI Team:")
-    st.markdown("- 🕵️ Lead Researcher\n- 📚 Lit Reviewer\n- 📊 Data Analyst\n- 🔍 Fact Checker\n- 👔 Orchestrator")
+    st.markdown(
+        "- 🕵️ **Researcher** — `gpt-oss-20b`\n"
+        "- 📚 **Lit Reviewer** — `gpt-oss-20b`\n"
+        "- 📊 **Analyst** — `gpt-oss-120b`\n"
+        "- 🔍 **Fact Checker** — `gpt-oss-safeguard-20b`\n"
+        "- 👔 **Orchestrator** — `gpt-oss-120b`"
+    )
 
 # ==========================================
 # 5. THE MAIN SCREEN
