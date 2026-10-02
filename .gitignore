@@ -14,3 +14,6 @@ venv.bak/
 
 # Streamlit
 .streamlit/
+
+# Streamlit secrets
+.streamlit/secrets.toml
