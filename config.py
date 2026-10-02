@@ -37,7 +37,7 @@ def get_llm():
     from crewai import LLM
     
     return LLM(
-        model="groq/mixtral-8x7b-32768",
+        model="groq/openai/gpt-oss-120b",
         api_key=groq_api_key,
         temperature=0.7
     )
