@@ -5,3 +5,4 @@ streamlit
 python-dotenv
 duckduckgo-search
 pysqlite3-binary
+langchain-community
