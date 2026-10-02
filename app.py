@@ -322,19 +322,27 @@ class StreamToExpander:
 with st.sidebar:
     st.markdown("### ⚙️ Configuration")
     st.markdown("---")
-    api_key = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
-    if api_key:
-        os.environ["GROQ_API_KEY"] = api_key
-        st.success("✅ API Key saved")
 
+    st.markdown(
+        "<div style='background:#1E293B;border:1px solid #334155;border-radius:8px;"
+        "padding:0.75rem;font-size:0.8rem;color:#94A3B8'>"
+        "🔐 <b style='color:#38BDF8'>Azure OpenAI</b><br><br>"
+        "Auth: <code>DefaultAzureCredential</code><br>"
+        "Run <code>az login</code> in terminal before starting the app."
+        "</div>",
+        unsafe_allow_html=True
+    )
+
+    st.markdown("---")
+    st.markdown("**☁️ Provider:** Azure OpenAI")
     st.markdown("---")
     st.markdown("**Your AI Team**")
     agents_info = [
-        ("🕵️", "Researcher",    "gpt-oss-20b",           "Web search & facts"),
-        ("📚", "Lit Reviewer",  "gpt-oss-20b",           "Academic papers"),
-        ("📊", "Analyst",       "gpt-oss-120b",          "Deep analysis"),
-        ("🔍", "Fact Checker",  "gpt-oss-safeguard-20b", "Verification"),
-        ("👔", "Orchestrator",  "gpt-oss-120b",          "Final synthesis"),
+        ("🕵️", "Researcher",   "gpt-4.1-nano-2025-04-14",  "Web search & facts"),
+        ("📚", "Lit Reviewer", "gpt-4.1-nano-2025-04-14",  "Academic papers"),
+        ("📊", "Analyst",      "gpt-5.2-2025-12-11",       "Deep analysis"),
+        ("🔍", "Fact Checker", "gpt-4.1-mini-2025-04-14",  "Verification"),
+        ("👔", "Orchestrator", "gpt-5.2-2025-12-11",       "Final synthesis"),
     ]
     for icon, name, model, role in agents_info:
         st.markdown(
