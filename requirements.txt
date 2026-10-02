@@ -1,9 +1,11 @@
 crewai
 crewai-tools
-langchain-groq
 streamlit
 python-dotenv
 duckduckgo-search
 pysqlite3-binary
 langchain-community
 litellm
+openai
+azure-identity
+azure-core
