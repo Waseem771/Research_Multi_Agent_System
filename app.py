@@ -368,12 +368,6 @@ st.markdown("""
 # ==========================================
 # 6. INPUT AREA
 # ==========================================
-# API key expander (quick access without sidebar)
-with st.expander("🔑 Enter Groq API Key (if not set in sidebar)", expanded=not bool(os.environ.get("GROQ_API_KEY"))):
-    inline_key = st.text_input("API Key", type="password", key="inline_key", label_visibility="collapsed", placeholder="gsk_...")
-    if inline_key:
-        os.environ["GROQ_API_KEY"] = inline_key
-
 col_input, col_btn = st.columns([5, 1])
 with col_input:
     topic = st.text_input(
