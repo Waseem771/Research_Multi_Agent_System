@@ -1,4 +1,8 @@
 import os
+import litellm
+
+# Tell LiteLLM to drop any parameters (like cache_breakpoint) that Groq doesn't support
+litellm.drop_params = True
 
 def get_llm():
     # In recent versions of CrewAI, passing the litellm string format 
