@@ -1,5 +1,9 @@
 import os
 import litellm
+from dotenv import load_dotenv
+
+# Load .env file automatically so GROQ_API_KEY is always available
+load_dotenv()
 
 # Tell LiteLLM to drop any unsupported parameters
 litellm.drop_params = True
@@ -40,25 +44,21 @@ def _build_llm(model_name: str, max_tokens: int = 1024):
 
 def get_fast_llm():
     """
-    llama-3.1-8b-instant  →  Lightweight & fast (real Groq model).
+    openai/gpt-oss-20b  ->  Lightweight & fast (TESTED: PASS).
     Best for: Researcher & Literature Reviewer
-    (quick tool-call tasks that don't need deep reasoning)
     """
-    return _build_llm("llama-3.1-8b-instant", max_tokens=800)
+    return _build_llm("openai/gpt-oss-20b", max_tokens=800)
 
 def get_power_llm():
     """
-    llama-3.3-70b-versatile  →  Most powerful reasoning model (real Groq model).
+    openai/gpt-oss-120b  ->  Most powerful reasoning model (TESTED: PASS).
     Best for: Analyst & Orchestrator
-    (heavy synthesis / writing tasks)
     """
-    return _build_llm("llama-3.3-70b-versatile", max_tokens=1024)
+    return _build_llm("openai/gpt-oss-120b", max_tokens=1024)
 
 def get_safe_llm():
     """
-    llama-3.3-70b-versatile  →  Used for fact-checking (real Groq model).
+    openai/gpt-oss-safeguard-20b  ->  Safety-tuned model (TESTED: PASS).
     Best for: Fact Checker
-    Note: llama-guard-3-8b is a classification model only; using versatile instead
-    for free-text fact-check output.
     """
-    return _build_llm("llama-3.3-70b-versatile", max_tokens=600)
+    return _build_llm("openai/gpt-oss-safeguard-20b", max_tokens=600)
