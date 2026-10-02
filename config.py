@@ -1,8 +1,29 @@
 import os
 import litellm
 
-# Tell LiteLLM to drop any parameters (like cache_breakpoint) that Groq doesn't support
+# Tell LiteLLM to drop any unsupported parameters
 litellm.drop_params = True
+
+# --- PATCH FOR GROQ cache_breakpoint BUG ---
+# CrewAI forcefully adds 'cache_breakpoint' to messages, which Groq's API strictly rejects.
+# This patch intercepts the messages right before they are sent and deletes the unsupported key.
+original_completion = litellm.completion
+
+def patched_completion(*args, **kwargs):
+    if 'messages' in kwargs:
+        for msg in kwargs['messages']:
+            if isinstance(msg, dict) and 'cache_breakpoint' in msg:
+                del msg['cache_breakpoint']
+    
+    if len(args) > 1 and isinstance(args[1], list):
+        for msg in args[1]:
+            if isinstance(msg, dict) and 'cache_breakpoint' in msg:
+                del msg['cache_breakpoint']
+                
+    return original_completion(*args, **kwargs)
+
+litellm.completion = patched_completion
+# -------------------------------------------
 
 def get_llm():
     # In recent versions of CrewAI, passing the litellm string format 
